@@ -30,16 +30,16 @@ interface Abbreviation<T> {
 let boundaryCondition: BoundaryCondition<number> = {
   R1: 10, //m
   R2: 2000, //m
-  deltaTime: 100, //s
+  deltaTime: 10000, //s
   rho: 1000, //kg/m^3
   Crho: 100, //J/kg
   lambda: 100, //W/(m*K)
   range: 5, //T0.length
-  T0: [50, 100, 150, 200, 300], 
+  T0: [50, 0, 0, 0, 300], 
   alpha1: 10, //W/(m^2*K)
   alpha2: 50, //W/(m^2*K)
-  T1: 50, //K
-  T2: 1000, //K
+  T1: 10000, //K
+  T2: 0, //K
   }
 
 //Variant 24
@@ -150,10 +150,10 @@ function implicitSchema(initialTemperature: Vector, boundaryCondition: BoundaryC
   //init resulted vector with unphysical
   const finalT: Vector = new Array<number>(inT.length + 2)
   //first value adding in array
-  const T00 = (inT[0] + k1 * deltaX * bc.T1) / (1 + k1 * deltaX)
+  const T00 = inT[2] + 2 * k1 * deltaX * (bc.T1 - inT[1]) //(inT[0] + k1 * deltaX * bc.T1) / (1 + k1 * deltaX)
   inT.unshift(T00)
   //last value adding in array
-  const T0n = (inT[inT.length - 1] + k2 * deltaX * bc.T2) / (1 + k2 * deltaX)
+  const T0n = inT[inT.length - 2] + 2 * k2 * deltaX * (bc.T2 - inT[inT.length - 1]) //(inT[inT.length - 1] + k2 * deltaX * bc.T2) / (1 + k2 * deltaX)
   inT.push(T0n)
   console.log('inT after adding: ', inT);
   //finding in range of [1, n-1]
