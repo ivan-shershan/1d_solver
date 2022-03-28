@@ -140,6 +140,37 @@ function zeidel(initialMatrix: Matrix, rightPart: Matrix, accuracy: number): Mat
   
 }
 
+function swipeMethod(matrix: Matrix, rightPart: Vector) : Vector {
+  const A = matrix
+  const b = rightPart
+  const n = b.length
+  //swipe coefficients
+  let alpha = new Array(n)
+  let beta = new Array(n)
+  //first row
+  let y = A[0][0]
+  alpha[0] = - A[0][1] / y
+  beta[0] = b[0] / y
+  //other except last
+  for (let i = 1; i < n-1; i++) {
+   y = A[i][i] + A[i][i - 1] * alpha[i - 1]
+   alpha[i] = - A[i][i + 1] / y
+   beta[i] = (b[i] - A[i][i - 1] * beta[i - 1]) / y 
+  }
+  //last row
+  y = A[n - 1][n - 1] + A[n - 1][n - 2] * alpha[n - 2]
+  console.log("y",y)
+  beta[n - 1] = (b[n - 1] - A[n - 1][n - 2] * beta[n - 2]) / y
+  console.log("beta", beta)
+  //at last
+  let answer = new Array(n)
+  answer[n - 1] = beta[n - 1]
+  for (let i = n - 2; i >= 0; i--){
+    answer[i] = alpha[i] * answer[i + 1] + beta[i]
+  }
+  return answer
+}
+
 function implicitSchema(initialTemperature: Vector, boundaryCondition: BoundaryCondition<number> ): Vector {
   const bc = boundaryCondition
   console.log('bc: ', bc);
@@ -187,8 +218,10 @@ function makeMatrixFromBC(timeSteps: number, initialConditions: BoundaryConditio
 
 
 //исполняющий код
-// let temp = makeMatrixFromBC(2, boundaryCondition)
+//let temp = makeMatrixFromBC(2, boundaryCondition)
 // temp[0][1][1] = 1
 // console.log('temp[0][1][2]: ', temp[0][1][1]);
 // console.log(temp);
 console.log(implicitSchema(boundaryCondition.T0, boundaryCondition))
+
+console.log(swipeMethod([[1, 3, 0, 0], [2, -5, 7, 0], [0, 4, 5, 8], [0, 0, 0, 6]], [1, 2, 3, 0]))
