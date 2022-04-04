@@ -30,7 +30,7 @@ interface Abbreviation<T> {
 let boundaryCondition: BoundaryCondition<number> = {
   R1: 10, //m
   R2: 2000, //m
-  deltaTime: 10000, //s
+  deltaTime: 10, //s
   rho: 1000, //kg/m^3
   Crho: 100, //J/kg
   lambda: 100, //W/(m*K)
@@ -152,7 +152,7 @@ function swipeMethod(matrix: Matrix, rightPart: Vector) : Vector {
   alpha[0] = - A[0][1] / y
   beta[0] = b[0] / y
   //other except last
-  for (let i = 1; i < n-1; i++) {
+  for (let i = 1; i < n - 1; i++) {
    y = A[i][i] + A[i][i - 1] * alpha[i - 1]
    alpha[i] = - A[i][i + 1] / y
    beta[i] = (b[i] - A[i][i - 1] * beta[i - 1]) / y 
@@ -161,6 +161,7 @@ function swipeMethod(matrix: Matrix, rightPart: Vector) : Vector {
   y = A[n - 1][n - 1] + A[n - 1][n - 2] * alpha[n - 2]
   console.log("y",y)
   beta[n - 1] = (b[n - 1] - A[n - 1][n - 2] * beta[n - 2]) / y
+  console.log("alpha", alpha)
   console.log("beta", beta)
   //at last
   let answer = new Array(n)
@@ -171,17 +172,48 @@ function swipeMethod(matrix: Matrix, rightPart: Vector) : Vector {
   return answer
 }
 
-function implicitSchema(initialTemperature: Vector, boundaryCondition: BoundaryCondition<number> ): Vector {
+function swipeMethod1(a: Vector, b: Vector, c: Vector, d: Vector) : Vector {
+  const n = b.length
+  //swipe coefficients
+  let alpha = new Array(n)
+  let beta = new Array(n)
+  //first row
+  let y = b[0]
+  alpha[0] = - c[0] / y
+  beta[0] = d[0] / y
+  //other except last
+  for (let i = 1; i < n - 1; i++) {
+   y = b[i] + a[i] * alpha[i - 1]
+   alpha[i] = - c[i] / y
+   beta[i] = (d[i] - a[i] * beta[i - 1]) / y 
+  }
+  //last row
+  y = b[n - 1] + a[n - 1] * alpha[n - 2]
+  console.log("y",y)
+  beta[n - 1] = (d[n - 1] - a[n - 1] * beta[n - 2]) / y
+  // console.log("abc", a,b,c)
+  // console.log("alpha", alpha)
+  // console.log("beta", beta)
+  //at last
+  let answer = new Array(n)
+  answer[n - 1] = beta[n - 1]
+  for (let i = n - 2; i >= 0; i--){
+    answer[i] = alpha[i] * answer[i + 1] + beta[i]
+  }
+  return answer
+}
+
+function explicitSchema(initialTemperature: Vector, boundaryCondition: BoundaryCondition<number> ): Vector {
   const bc = boundaryCondition
   console.log('bc: ', bc);
-  const inT = initialTemperature
+  const inT = [...initialTemperature]
   console.log('inT: ', inT);
   const {a, k1, k2, deltaT, deltaX}: Abbreviation<number> = abbr(bc)
   const r = (i: number): number => bc.R1 + (i - 1) * deltaX
   //init resulted vector with unphysical
   const finalT: Vector = new Array<number>(inT.length + 2)
   //first value adding in array
-  const T00 = inT[2] + 2 * k1 * deltaX * (bc.T1 - inT[1]) //(inT[0] + k1 * deltaX * bc.T1) / (1 + k1 * deltaX)
+  const T00 = inT[1] + 2 * k1 * deltaX * (bc.T1 - inT[0]) //(inT[0] + k1 * deltaX * bc.T1) / (1 + k1 * deltaX)
   inT.unshift(T00)
   //last value adding in array
   const T0n = inT[inT.length - 2] + 2 * k2 * deltaX * (bc.T2 - inT[inT.length - 1]) //(inT[inT.length - 1] + k2 * deltaX * bc.T2) / (1 + k2 * deltaX)
@@ -193,7 +225,7 @@ function implicitSchema(initialTemperature: Vector, boundaryCondition: BoundaryC
     a * deltaT / (2 * deltaX * r(i)) * (inT[i + 1] - inT[i - 1])
   }
 
-  return finalT//.slice(1, -1)
+  return finalT.slice(1, -1)//drop first and last empty array elements
 }
 
 //console.log(zeidel(testMatrix1, testRightPart1, 0.001))
@@ -216,12 +248,48 @@ function makeMatrixFromBC(timeSteps: number, initialConditions: BoundaryConditio
   return result
 }
 
+function implicitSchema(initialTemperature: Vector, boundaryCondition: BoundaryCondition<number>): Vector {
+  const bc = boundaryCondition
+  console.log('bc: ', bc);
+  const inT = [...initialTemperature]
+  console.log('inT: ', inT);
+  const {a, k1, k2, deltaT, deltaX}: Abbreviation<number> = abbr(bc)
+  const r = (i: number): number => bc.R1 + (i - 1) * deltaX
+  //init resulted vector with unphysical
+  let finalT: Vector = new Array<number>(inT.length)
+  //prepare vectors of coefficients
+  let A: Vector = new Array<number>(inT.length - 1)
+  let B: Vector = new Array<number>(inT.length - 1)
+  let C: Vector = new Array<number>(inT.length - 1)
+  let D: Vector = new Array<number>(inT.length - 1)
+  //first row
+  A[0] = 0 //don't care
+  B[0] = ( - 1/(a * deltaT) - 2 / (deltaX ^ 2) ) - k1 * (2 / deltaX - 1 / r(1))
+  C[0] = ( 2 / (deltaX ^ 2) )
+  D[0] = inT[0] / (a * deltaT) - bc.T1 * k1 * (2 / deltaX - 1 / r(1)) //first physical initial temperature
+  //i-th row
+  for (let i = 1; i < (inT.length - 1); i++) {
+    A[i] = 1 / (deltaX ^ 2) - 1 / (2 * deltaX * r(i))
+    B[i] = - 1 / (a * deltaT) - 2 / (deltaX ^ 2)
+    C[i] = 1 / (deltaX ^ 2) + 1 / (2 * deltaX * r(i))
+    D[i] = inT[i - 1] / (a * deltaT)
+  }
+  //last row
+  A[inT.length - 1] = ( - 1 / (a * deltaT) - 2 / (deltaX ^ 2) ) - k2 * (2 / deltaX + 1 / r(1))
+  B[inT.length - 1] = ( 2 / (deltaX ^ 2) )
+  C[inT.length - 1] = 0 //don't care
+  D[inT.length - 1] = inT[inT.length - 2] / (a * deltaT) - bc.T2 * k2 * (2 / deltaX + 1 / r(inT.length - 1)) //last physical initial temperature
+  console.log("C = ", C)
+  finalT = swipeMethod1(A, B, C, D)
+  return finalT//drop first and last empty array elements
+}
 
 //исполняющий код
 //let temp = makeMatrixFromBC(2, boundaryCondition)
 // temp[0][1][1] = 1
 // console.log('temp[0][1][2]: ', temp[0][1][1]);
 // console.log(temp);
-console.log(implicitSchema(boundaryCondition.T0, boundaryCondition))
-
-console.log(swipeMethod([[1, 3, 0, 0], [2, -5, 7, 0], [0, 4, 5, 8], [0, 0, 0, 6]], [1, 2, 3, 0]))
+console.log("result: ", explicitSchema(boundaryCondition.T0, boundaryCondition))
+console.log("result: ", implicitSchema(boundaryCondition.T0, boundaryCondition))
+// console.log(swipeMethod([[1, 3, 0, 0], [2, -5, 7, 0], [0, 4, 5, 8], [0, 0, 0, 6]], [1, 2, 3, 0]))
+// console.log(swipeMethod1([0,2,4,0],[1,-5,5,6],[3,7,8,1],[1,2,3,0]))//correct!
